@@ -23,7 +23,7 @@ class myHtmlParser(HTMLParser):
         if tag == "a":
             for attr in attrs:
                 if attr[0] == 'href' and not "edu" in attr[1]:
-                    print(attr[1] + "\n\n")
+                    #print(attr[1] + "\n\n")
                     self.follow_up_links.append(attr[1])
 
     def handle_data(self, data):
@@ -36,6 +36,9 @@ class myHtmlParser(HTMLParser):
 
     def getFollowUpLinks(self):
         return self.follow_up_links
+
+    def clearFollowups(self):
+      self.follow_up_links = []
 
 parser = argparse.ArgumentParser(description='Crawls Fakebook for secret flags.')
 parser.add_argument(type=str, dest="username", help='The username.')
@@ -59,7 +62,6 @@ to_visit = []
 
 def handleResponse(result, url):
     handle_code = result[9:12]
-    print(handle_code)
     if handle_code == "200" or handle_code == "302":
         result = result.split('<html>')
         html = ""
@@ -86,7 +88,7 @@ def GETLogin():
   global csrf_Cookie, session_Cookie
   sock.send("GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\n")
   sock.send("Connection: keep-alive\r\n")
-  sock.send("From: berin.s@husky.neu.edu\r\n")
+  sock.send("From: weinstein.br@husky.neu.edu\r\n")
   sock.send("User-Agent: Mozilla/5.0\r\n")
   sock.send("Host: fring.ccs.neu.edu\r\n")
   sock.send("\r\n")
@@ -104,7 +106,7 @@ def GETRequest(url):
   global csrf_Cookie, session_Cookie, sock, host
   sock.send("GET " + url + " HTTP/1.1\r\n")
   sock.send("Connection: keep-alive\r\n")
-  sock.send("From: berin.s@husky.neu.edu\r\n")
+  sock.send("From: weinstein.br@husky.neu.edu\r\n")
   sock.send("User-Agent: Mozilla/5.0\r\n")
   sock.send("Host: fring.ccs.neu.edu\r\n")
   sock.send("Cookie: csrftoken=" + csrf_Cookie + "; sessionid=" + session_Cookie + "\r\n")
@@ -118,11 +120,11 @@ def GETRequest(url):
       sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       sock.connect((host, 80))
       sock.settimeout(10)
-      GETRequest(url)
-
-  #Print the results of the GET Request
-  response = handleResponse(result, url)
-  return response
+      return GETRequest(url)
+  else:
+      #Print the results of the GET Request
+      response = handleResponse(result, url)
+      return response
 
 def POSTLogin():
   global csrf_Cookie, session_Cookie
@@ -157,9 +159,7 @@ while(len(htmlparser.getFlags()) < 5):
     print("Visiting " + str(to_visit[0]) + "\n")
     get = GETRequest(to_visit[0])
 
-    if "friends" in to_visit[0]:
-        print get + "\n\n\n"
-
+    htmlparser.clearFollowups()
     htmlparser.feed(get)
 
     if (len(htmlparser.getFollowUpLinks()) == 0):
