@@ -1,9 +1,12 @@
+#!/usr/bin/python
+
 # Code inspired by https://docs.python.org/3/library/html.parser.html (PYTHON DOCUMENTATION)
 from HTMLParser import HTMLParser
 
 class myHtmlParser(HTMLParser):
     getThisFlag = False
     secret_flags = []
+    follow_up_links = []
 
     def handle_starttag(self, tag, attrs):
         if tag == "h2":
@@ -11,12 +14,21 @@ class myHtmlParser(HTMLParser):
                 if attr[0] == 'class' and attr[1] == 'secret_flag':
                     self.getThisFlag = True
 
+        if tag == "a":
+            for attr in attrs:
+                if attr[0] == 'href' and not "edu" in attr[1]:
+                    follow_up_links.append(attr[1])
+
     def handle_data(self, data):
         if (self.getThisFlag):
             self.secret_flags.append(data)
+            self.getThisFlag = False
 
     def getFlags(self):
         return self.secret_flags
+
+    def getFollowUpLinks(self):
+        return self.follow_up_links
 
 parser = myHtmlParser()
 parser.feed('<h2 class=\'secret_flag\' style="color:red">FLAG: 64-characters-of-random-alphanumerics</h2>')

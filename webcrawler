@@ -6,6 +6,36 @@ import xml
 import socket
 import json
 import datetime
+from HTMLParser import HTMLParser
+
+
+class myHtmlParser(HTMLParser):
+    getThisFlag = False
+    secret_flags = []
+    follow_up_links = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "h2":
+            for attr in attrs:
+                if attr[0] == 'class' and attr[1] == 'secret_flag':
+                    self.getThisFlag = True
+
+        if tag == "a":
+            for attr in attrs:
+                if attr[0] == 'href' and not "edu" in attr[1]:
+                    print(attr[1] + "\n\n")
+                    self.follow_up_links.append(attr[1])
+
+    def handle_data(self, data):
+        if (self.getThisFlag):
+            self.secret_flags.append(data)
+            self.getThisFlag = False
+
+    def getFlags(self):
+        return self.secret_flags
+
+    def getFollowUpLinks(self):
+        return self.follow_up_links
 
 parser = argparse.ArgumentParser(description='Crawls Fakebook for secret flags.')
 parser.add_argument(type=str, dest="username", help='The username.')
@@ -20,8 +50,12 @@ dest = (fakebook_IP, 80)
 sock.connect((host, 80))
 sock.settimeout(10)
 
+
+htmlparser = myHtmlParser()
 csrf_Cookie = ""
 session_Cookie = ""
+visited = []
+to_visit = []
 
 def GETLogin():
   global csrf_Cookie, session_Cookie
@@ -34,7 +68,6 @@ def GETLogin():
   result = sock.recv(1400)
   result += sock.recv(1400)
   #Print the results of the GET Request
-  print(result)
   #Set the csrf and session
   result = result[result.index("Set-Cookie") + 12:]
   csrf_Cookie = result[:result.index(";")]
@@ -54,7 +87,13 @@ def GETRequest(url):
   result = sock.recv(1400)
   result += sock.recv(1400)
   #Print the results of the GET Request
-  print(result)
+  result = result.split('<html>')
+  html = ""
+
+  if (len(result) > 1):
+      html = "<html>" + result[1]
+
+  return html
 
 def POSTLogin():
   global csrf_Cookie, session_Cookie
@@ -74,22 +113,38 @@ def POSTLogin():
   sock.send("username=001271126&password=2HEC8XA2&" + "csrfmiddlewaretoken=" + csrf_Cookie + "&next=%2Ffakebook%2F\r\n")
   sock.send("\r\n")
   result = sock.recv(1400)
-  print(result)
+  result += sock.recv(1400)
   result = result[result.index("Set-Cookie") + 12:]
   session_Cookie = result[:result.index(";")]
   session_Cookie = session_Cookie[10:]
 
 GETLogin()
 POSTLogin()
-GETRequest("/fakebook/")
+
+to_visit.append("/fakebook/")
+
+while(len(htmlparser.getFlags()) < 5):
+    print("Visiting " + str(to_visit[0]) + "\n")
+    print(str(len(to_visit)) + "\n")
+    get = GETRequest(to_visit[0])
+
+    if "friends" in to_visit[0]:
+        print get + "\n\n\n"
+
+    htmlparser.feed(get)
+
+    if (len(htmlparser.getFollowUpLinks()) == 0):
+        sys.exit()
 
 
+    visited.append(to_visit[0])
+    to_visit.pop(0)
 
+    for link in htmlparser.getFollowUpLinks():
+        if link not in visited:
+            to_visit.append(link)
 
+    if htmlparser.getFlags() > 0:
+        print(htmlparser.getFlags())
 
-
-
-
-
-
-
+print(htmlparser.getFlags())
