@@ -43,7 +43,6 @@ parser.add_argument(type=str, dest="password", help='The password.')
 
 args = parser.parse_args(sys.argv[1:])
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
 fakebook_IP = socket.gethostbyname(socket.gethostname())
 host = socket.gethostbyname("fring.ccs.neu.edu")
 dest = (fakebook_IP, 80)
@@ -110,7 +109,8 @@ def POSTLogin():
   sock.send("Connection: keep-alive\r\n")
   sock.send("Upgrade-Insecure-Requests: 1\r\n")
   sock.send("\r\n")
-  sock.send("username=001271126&password=2HEC8XA2&" + "csrfmiddlewaretoken=" + csrf_Cookie + "&next=%2Ffakebook%2F\r\n")
+  #sock.send("username=" + str(args.username) + "&password=" + str(args.password) + "&csrfmiddlewaretoken=" + csrf_Cookie + "&next=%2Ffakebook%2F\r\n")
+  sock.send("username=" + args.username + "&password=" + args.password + "&csrfmiddlewaretoken=" + csrf_Cookie + "&next=%2Ffakebook%2F\r\n")
   sock.send("\r\n")
   result = sock.recv(1400)
   result += sock.recv(1400)
