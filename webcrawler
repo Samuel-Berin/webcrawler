@@ -56,11 +56,37 @@ session_Cookie = ""
 visited = []
 to_visit = []
 
+
+def handleResponse(result, url):
+    handle_code = result[9:12]
+    print(handle_code)
+    if handle_code == "200" or handle_code == "302":
+        result = result.split('<html>')
+        html = ""
+
+        if (len(result) > 1):
+            html = "<html>" + result[1]
+
+        return html
+    elif handle_code == "403" or handle_code == "404":
+        to_visit.remove(url)
+        return GETRequest(to_visit[0])
+    elif handle_code == "500":
+        return GETRequest(url)
+    elif handle_code == "301":
+        print "Howdy!"
+    else:
+        return GETRequest(url)
+        print "YO"
+        print handle_code
+
+
+
 def GETLogin():
   global csrf_Cookie, session_Cookie
   sock.send("GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\n")
   sock.send("Connection: keep-alive\r\n")
-  sock.send("From: weinstein.br@husky.neu.edu\r\n")
+  sock.send("From: berin.s@husky.neu.edu\r\n")
   sock.send("User-Agent: Mozilla/5.0\r\n")
   sock.send("Host: fring.ccs.neu.edu\r\n")
   sock.send("\r\n")
@@ -75,24 +101,28 @@ def GETLogin():
   session_Cookie = result[:result.index(";")]
 
 def GETRequest(url):
-  global csrf_Cookie, session_Cookie
+  global csrf_Cookie, session_Cookie, sock, host
   sock.send("GET " + url + " HTTP/1.1\r\n")
   sock.send("Connection: keep-alive\r\n")
-  sock.send("From: weinstein.br@husky.neu.edu\r\n")
+  sock.send("From: berin.s@husky.neu.edu\r\n")
   sock.send("User-Agent: Mozilla/5.0\r\n")
   sock.send("Host: fring.ccs.neu.edu\r\n")
   sock.send("Cookie: csrftoken=" + csrf_Cookie + "; sessionid=" + session_Cookie + "\r\n")
   sock.send("\r\n")
   result = sock.recv(1400)
   result += sock.recv(1400)
+
+  if(len(result) == 0):
+      print("Close that socket!")
+      sock.close()
+      sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      sock.connect((host, 80))
+      sock.settimeout(10)
+      GETRequest(url)
+
   #Print the results of the GET Request
-  result = result.split('<html>')
-  html = ""
-
-  if (len(result) > 1):
-      html = "<html>" + result[1]
-
-  return html
+  response = handleResponse(result, url)
+  return response
 
 def POSTLogin():
   global csrf_Cookie, session_Cookie
@@ -125,7 +155,6 @@ to_visit.append("/fakebook/")
 
 while(len(htmlparser.getFlags()) < 5):
     print("Visiting " + str(to_visit[0]) + "\n")
-    print(str(len(to_visit)) + "\n")
     get = GETRequest(to_visit[0])
 
     if "friends" in to_visit[0]:
