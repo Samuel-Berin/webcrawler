@@ -27,9 +27,10 @@ class myHtmlParser(HTMLParser):
                     self.follow_up_links.append(attr[1])
 
     def handle_data(self, data):
-        if (self.getThisFlag):
+        if (self.getThisFlag and data not in self.secret_flags):
             self.secret_flags.append(data)
-            self.getThisFlag = False
+        self.getThisFlag = False
+
 
     def getFlags(self):
         return self.secret_flags
@@ -61,8 +62,10 @@ to_visit = []
 
 
 def handleResponse(result, url):
-    handle_code = result[9:12]
-    if handle_code == "200" or handle_code == "302":
+    handle_code = result[:result.index("\n")]
+    print(handle_code)
+
+    if "200" in handle_code or "302" in handle_code:
         result = result.split('<html>')
         html = ""
 
@@ -70,17 +73,20 @@ def handleResponse(result, url):
             html = "<html>" + result[1]
 
         return html
-    elif handle_code == "403" or handle_code == "404":
+    elif "404" in handle_code or "403" in handle_code:
         to_visit.remove(url)
         return GETRequest(to_visit[0])
-    elif handle_code == "500":
+    elif "500" in handle_code:
         return GETRequest(url)
-    elif handle_code == "301":
+    elif "301" in handle_code:
         print "Howdy!"
-    else:
+    elif "0\r" == handle_code:
         return GETRequest(url)
-        print "YO"
-        print handle_code
+    else:
+        print("DONE!\n")
+        print(result)
+        sys.exit()
+
 
 
 
@@ -104,6 +110,7 @@ def GETLogin():
 
 def GETRequest(url):
   global csrf_Cookie, session_Cookie, sock, host
+  print("Visiting: " + url)
   sock.send("GET " + url + " HTTP/1.1\r\n")
   sock.send("Connection: keep-alive\r\n")
   sock.send("From: weinstein.br@husky.neu.edu\r\n")
@@ -112,10 +119,15 @@ def GETRequest(url):
   sock.send("Cookie: csrftoken=" + csrf_Cookie + "; sessionid=" + session_Cookie + "\r\n")
   sock.send("\r\n")
   result = sock.recv(1400)
-  result += sock.recv(1400)
 
-  if(len(result) == 0):
-      print("Close that socket!")
+
+  while len(result) != 0 and "HTTP/1.1 200 OK" in result and "</html>" not in result:
+      result += sock.recv(1400)
+
+
+  if(len(result) == 0 or "HTTP" not in result):
+      print("Socket Closed")
+      print("result: " + result)
       sock.close()
       sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       sock.connect((host, 80))
@@ -145,7 +157,6 @@ def POSTLogin():
   sock.send("username=" + args.username + "&password=" + args.password + "&csrfmiddlewaretoken=" + csrf_Cookie + "&next=%2Ffakebook%2F\r\n")
   sock.send("\r\n")
   result = sock.recv(1400)
-  result += sock.recv(1400)
   result = result[result.index("Set-Cookie") + 12:]
   session_Cookie = result[:result.index(";")]
   session_Cookie = session_Cookie[10:]
@@ -156,7 +167,6 @@ POSTLogin()
 to_visit.append("/fakebook/")
 
 while(len(htmlparser.getFlags()) < 5):
-    print("Visiting " + str(to_visit[0]) + "\n")
     get = GETRequest(to_visit[0])
 
     htmlparser.clearFollowups()
@@ -167,13 +177,15 @@ while(len(htmlparser.getFlags()) < 5):
 
 
     visited.append(to_visit[0])
+    print("Checked: " + str(len(visited)))
     to_visit.pop(0)
 
     for link in htmlparser.getFollowUpLinks():
         if link not in visited:
             to_visit.append(link)
 
-    if htmlparser.getFlags() > 0:
-        print(htmlparser.getFlags())
+    print("Found " + str(len(htmlparser.getFlags())) + " flag(s)")
 
-print(htmlparser.getFlags())
+print("Flags: \n")
+for flag in htmlparser.getFlags():
+    print flag[flag.index(" "):] + "\n"
