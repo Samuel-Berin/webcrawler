@@ -85,7 +85,6 @@ def handleResponse(result, url):
     else:
         print("DONE!\n")
         print(result)
-        sys.exit()
 
 
 
@@ -128,10 +127,13 @@ def GETRequest(url):
   if(len(result) == 0 or "HTTP" not in result):
       print("Socket Closed")
       print("result: " + result)
+
+      print(htmlparser.getFlags())
       sock.close()
       sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       sock.connect((host, 80))
       sock.settimeout(10)
+      print("Reopened socket\n")
       return GETRequest(url)
   else:
       #Print the results of the GET Request
